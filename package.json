@@ -1,0 +1,21 @@
+{
+  "name": "biometricsdemo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "compile-solc": "node_modules/.bin/solcjs --bin --abi simplestorage.sol"
+  },
+  "author": "Smilo devs",
+  "license": "GNU",
+  "dependencies": {
+    "solc": "^0.5.0",
+    "web3": "^1.0.0-beta.52"
+  },
+  "devDependencies": {
+    "concurrently": "^3.5.1",
+    "nodemon": "^1.17.5"
+  }
+}
