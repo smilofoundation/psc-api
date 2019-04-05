@@ -5,12 +5,16 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js",
-    "compile-solc": "node_modules/.bin/solcjs --bin --abi simplestorage.sol"
+    "start": "node server.js | node_modules/.bin/bunyan -o short",
+    "compile-solc": "node_modules/.bin/solcjs --bin --abi simplestorage.sol",
+    "register": "./scripts/gethexec.sh ./scripts/psc-1.js"
   },
   "author": "Smilo devs",
   "license": "GNU",
   "dependencies": {
+    "bunyan": "^1.8.12",
+    "joi": "^14.3.1",
+    "nedb": "^1.8.0",
     "solc": "^0.5.0",
     "web3": "^1.0.0-beta.52"
   },
