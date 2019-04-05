@@ -10,7 +10,10 @@
     "register": "./scripts/gethexec.sh ./scripts/psc-1.js"
   },
   "author": "Smilo devs",
-  "license": "GNU",
+  "license": "AGPL-3.0-or-later",
+  "engines": {
+    "node": ">= 10.15.3"
+  },
   "dependencies": {
     "bunyan": "^1.8.12",
     "joi": "^14.3.1",
