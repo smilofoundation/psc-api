@@ -19,7 +19,7 @@ module.exports.routes = function routes(IDENTITY_DB) {
                                 }
                                 return callback(null,results);
                             });
-                        }
+                        };
                         const waitAsync = util.promisify(wait);
                         identities = await waitAsync();
                     } catch (err) {
@@ -50,7 +50,7 @@ module.exports.routes = function routes(IDENTITY_DB) {
                                 }
                                 return callback(null,results);
                             });
-                        }
+                        };
                         const waitAsync = util.promisify(wait);
                         identities = await waitAsync();
                     } catch (err) {
@@ -60,7 +60,7 @@ module.exports.routes = function routes(IDENTITY_DB) {
                     return {identities: identities};
 
                 },
-                description: 'get identity by biometrics',
+                description: 'Get identity by biometrics',
                 tags: ['api', 'identity']
             },
         }, {
@@ -77,7 +77,7 @@ module.exports.routes = function routes(IDENTITY_DB) {
                                 }
                                 return callback(null,count);
                             })
-                        }
+                        };
                         const waitAsync = util.promisify(wait);
                         count = await waitAsync();
                     } catch (err) {
@@ -86,7 +86,7 @@ module.exports.routes = function routes(IDENTITY_DB) {
                     }
                     return {count: count};
                 },
-                description: 'Array properties',
+                description: 'Count existing identities',
                 tags: ['api', 'identity'],
             },
         },

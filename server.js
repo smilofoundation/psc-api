@@ -40,6 +40,6 @@ const log = bunyan.createLogger({name: "server"});
     }
 
     //start reader
-    reader.doJob(server);
+    reader.start(server);
 
 })();

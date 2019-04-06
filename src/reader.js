@@ -112,7 +112,6 @@ async function parseBlock(i, b, cb) {
             return parseBlock(i, b, cb);
         }
 
-        let identitiesList = null
         const wait = function (callback) {
             IDENTITY_DB.find({biometrics: identity.biometrics}, function (err, results) {
                 if (err) {
@@ -120,9 +119,9 @@ async function parseBlock(i, b, cb) {
                 }
                 return callback(null, results);
             });
-        }
+        };
         const waitAsync = util.promisify(wait);
-        identitiesList = await waitAsync();
+        let identitiesList = await waitAsync();
 
         if (identitiesList && identitiesList.length > 0) {
             //update
@@ -193,7 +192,7 @@ function processTransactions(blockNumber) {
     }
 }
 
-module.exports.doJob = async function doJob(server) {
+module.exports.start = async function start(server) {
 
     if (server) {
         IDENTITY_DB = new Datastore({
@@ -228,27 +227,20 @@ module.exports.doJob = async function doJob(server) {
         blockNumber = await web3.eth.getBlockNumber();
     } catch (err) {
         log.error({err: err}, "Could not load getBlockNumber");
-        setTimeout(function () {
-            return doJob();
+        return await setTimeout(function () {
+            return start();
         }, TIMEOUT);
     }
 
-    if (!blockNumber) {
-        log.error("Could not get blockNumber, are you connected ?");
-        setTimeout(function () {
-            return doJob();
-        }, TIMEOUT);
-    } else {
-        if (ACTUAL_BLOCK <= blockNumber) {
-            processTransactions(blockNumber);
-        }
-
-        log.info({"blockNumber": blockNumber, "ACTUAL_BLOCK": ACTUAL_BLOCK}, "Restarting ... ");
-
-        setTimeout(function () {
-            return doJob();
-        }, TIMEOUT);
+    if (ACTUAL_BLOCK <= blockNumber) {
+        processTransactions(blockNumber);
     }
+
+    log.info({"blockNumber": blockNumber, "ACTUAL_BLOCK": ACTUAL_BLOCK}, "Restarting ... ");
+
+    setTimeout(function () {
+        return start();
+    }, TIMEOUT);
 }
 
 module.exports.IDENTITY_DB = IDENTITY_DB;
