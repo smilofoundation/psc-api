@@ -1,1 +1,1 @@
-# Smilo Biometrics DEMO
+# Smilo Private Smart Contracts API
