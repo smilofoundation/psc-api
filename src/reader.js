@@ -45,7 +45,7 @@ async function parseBlock(i, b, cb) {
         }
         // check if private
         if (tx.v == 37 || tx.v == 38) {
-            log.info({"tx": tx.hash}, "Got a private transaction");
+            log.info({"tx": tx.hash, "v": tx.v}, "Got a private transaction");
         } else {
             return parseBlock(i, b, cb); // skip public transactions
         }

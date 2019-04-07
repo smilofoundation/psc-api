@@ -1,7 +1,8 @@
 const bunyan = require('bunyan');
 const log = bunyan.createLogger({name: "server"});
 const util = require('util');
-
+const demodata = require("./demodata");
+const Joi = require('joi');
 
 module.exports.routes = function routes(IDENTITY_DB) {
     return [
@@ -35,7 +36,13 @@ module.exports.routes = function routes(IDENTITY_DB) {
         {
             method: 'POST',
             path: '/identities/biometrics',
+
             config: {
+                validate: {
+                    payload: Joi.object().keys({
+                        biometrics: Joi.array().default(demodata.biometrics).required()
+                    }),
+                },
                 handler: async function (request, h) {
 
                     const payload = request.payload;
