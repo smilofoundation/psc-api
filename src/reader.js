@@ -5,6 +5,11 @@ const bunyan = require('bunyan');
 const Datastore = require('nedb');
 const util = require('util');
 
+//face api
+const faceapi = require('face-api.js');
+require('@tensorflow/tfjs-node');
+
+
 const log = bunyan.createLogger({name: "reader"});
 
 const WEB3_HOST = process.env.WEB3_HOST || "http://localhost:22000";
@@ -112,53 +117,20 @@ async function parseBlock(i, b, cb) {
             return parseBlock(i, b, cb);
         }
 
-        const wait = function (callback) {
-            IDENTITY_DB.find({biometrics: identity.biometrics}, function (err, results) {
-                if (err) {
-                    return callback(err);
-                }
-                return callback(null, results);
-            });
-        };
-        const waitAsync = util.promisify(wait);
-        let identitiesList = await waitAsync();
+        identity._id = receipt.contractAddress;
 
-        if (identitiesList && identitiesList.length > 0) {
-            //update
-            IDENTITY_DB.update({_id: identitiesList[0]._id}, identity, {upsert: true}, function (err, newDoc) {
-                if (err) {
-                    log.error({
-                        err: err,
-                        "receipt.contractAddress": receipt.contractAddress,
-                        "tx": tx.hash,
-                    }, "Failed to update data in memory ...");
-                } else {
-                    log.info({
-                        "_id": newDoc._id,
-                        "receipt.contractAddress": receipt.contractAddress,
-                        "tx": tx.hash,
-                    }, "Updated data in memory ...");
-                }
-                return parseBlock(i, b, cb);
-            })
-        } else {
-            IDENTITY_DB.insert(identity, function (err, newDoc) {
-                if (err) {
-                    log.error({
-                        err: err,
-                        "receipt.contractAddress": receipt.contractAddress,
-                        "tx": tx.hash,
-                    }, "Failed to save data in memory ...");
-                } else {
-                    log.info({
-                        "_id": newDoc._id,
-                        "receipt.contractAddress": receipt.contractAddress,
-                        "tx": tx.hash,
-                    }, "Saved data in memory ...");
-                }
-                return parseBlock(i, b, cb);
-            });
-        }
+        //update with upsert true
+        IDENTITY_DB.update({_id: identity._id}, identity, {upsert: true}, function (err, newDoc) {
+            if (err) {
+                log.error({
+                    err: err,
+                    "receipt.contractAddress": receipt.contractAddress,
+                    "tx": tx.hash,
+                }, "Failed to update IDENTITY_DB data in memory ...");
+            }
+            return parseBlock(i, b, cb);
+        });
+
     } else {
         log.info({"number": b.number}, "Finished processing block ");
         return cb();
@@ -204,13 +176,14 @@ module.exports.start = async function start(server) {
             }
         });
 
-        IDENTITY_DB.ensureIndex({fieldName: 'biometrics'}, function (err) {
-            if (err) {
-                log.error({err: err}, "Could not create index");
-            }
-        });
+        await faceapi.nets.ssdMobilenetv1.loadFromDisk('./src/face-api/models');
+        await faceapi.nets.faceLandmark68Net.loadFromDisk('./src/face-api/models');
+        await faceapi.nets.faceRecognitionNet.loadFromDisk('./src/face-api/models');
+        console.log("Loaded face-api.js models");
 
-        server.route(identityRoute.routes(IDENTITY_DB));
+        const routes = identityRoute.routes(IDENTITY_DB, faceapi);
+        server.route(routes);
+
     }
 
 

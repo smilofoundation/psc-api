@@ -4,7 +4,7 @@ const util = require('util');
 const demodata = require("./demodata");
 const Joi = require('joi');
 
-module.exports.routes = function routes(IDENTITY_DB) {
+module.exports.routes = function routes(IDENTITY_DB, faceapi) {
     return [
         {
             method: 'GET',
@@ -51,7 +51,7 @@ module.exports.routes = function routes(IDENTITY_DB) {
                     let identities = 0;
                     try {
                         const wait = function (callback) {
-                            IDENTITY_DB.find({biometrics:biometrics}, function (err, results) {
+                            IDENTITY_DB.find({}, function (err, results) {
                                 if (err) {
                                     return callback(err);
                                 }
@@ -64,7 +64,20 @@ module.exports.routes = function routes(IDENTITY_DB) {
                         log.error({err: err}, "Failed to get the total of identities in memory, ");
                         return {err: err};
                     }
-                    return {identities: identities};
+
+                    const result = [];
+                    for(let i=0;i<identities.length;i++){
+                        result.push(new faceapi.LabeledFaceDescriptors(identities[i]._id, new Array(new Float32Array(identities[i].biometrics))));
+                    }
+                    log.info({count:identities.length},  "Loaded FACEAPI_DB", result.length);
+
+                    const faceMatcher = new faceapi.FaceMatcher(result);
+                    const bestMatch = faceMatcher.findBestMatch(biometrics);
+                    if(bestMatch) {
+                        log.info("Found bestMatch, ", bestMatch.toString())
+                    }
+
+                    return {identity: bestMatch};
 
                 },
                 description: 'Get identity by biometrics',
