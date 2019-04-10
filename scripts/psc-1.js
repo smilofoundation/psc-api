@@ -63,7 +63,7 @@ simpleContract.new(JSON.stringify(identity), {
     data: bytecode,
     gas: 0x47b760,
     gasPrice: 0,
-    sharedWith: ["rOHG3a8UzW7qKNRe9y5ymKbcebTRr+5nJC5TDaI3QV8="]
+    sharedWith: ["MD3fapkkHUn86h/W7AUhiD4NiDFkuIxtuRr0Nge27Bk="]
 }, function (e, contract) {
     if (e) {
         console.log("err creating contract", e);

@@ -32,6 +32,7 @@ const SCHEMA = Joi.object().keys({
 });
 
 let IDENTITY_DB = null;
+let TRANSACTIONS_DB = null;
 
 const identityRoute = require("./routes/identity");
 
@@ -50,7 +51,7 @@ async function parseBlock(i, b, cb) {
         }
         // check if private
         if (tx.v == 37 || tx.v == 38) {
-            log.info({"tx": tx.hash, "v": tx.v}, "Got a private transaction");
+            log.info({"txhash": tx.hash, "v": tx.v, "tx": tx}, "Got a private transaction");
         } else {
             return parseBlock(i, b, cb); // skip public transactions
         }
@@ -120,7 +121,7 @@ async function parseBlock(i, b, cb) {
         identity._id = receipt.contractAddress;
 
         //update with upsert true
-        IDENTITY_DB.update({_id: identity._id}, identity, {upsert: true}, function (err, newDoc) {
+        IDENTITY_DB.update({_id: identity._id}, identity, {upsert: true}, function (err) {
             if (err) {
                 log.error({
                     err: err,
@@ -128,7 +129,18 @@ async function parseBlock(i, b, cb) {
                     "tx": tx.hash,
                 }, "Failed to update IDENTITY_DB data in memory ...");
             }
-            return parseBlock(i, b, cb);
+
+            tx.contractAddress = receipt.contractAddress;
+            TRANSACTIONS_DB.update({_id: tx.hash}, tx, {upsert: true}, function (err) {
+                if (err) {
+                    log.error({
+                        err: err,
+                        "receipt.contractAddress": receipt.contractAddress,
+                        "tx": tx.hash,
+                    }, "Failed to update TRANSACTIONS_DB data in memory ...");
+                }
+                return parseBlock(i, b, cb);
+            });
         });
 
     } else {
@@ -176,12 +188,16 @@ module.exports.start = async function start(server) {
             }
         });
 
+        TRANSACTIONS_DB = new Datastore({
+            inMemoryOnly: true
+        });
+
         await faceapi.nets.ssdMobilenetv1.loadFromDisk('./src/face-api/models');
         await faceapi.nets.faceLandmark68Net.loadFromDisk('./src/face-api/models');
         await faceapi.nets.faceRecognitionNet.loadFromDisk('./src/face-api/models');
         console.log("Loaded face-api.js models");
 
-        const routes = identityRoute.routes(IDENTITY_DB, faceapi);
+        const routes = identityRoute.routes(IDENTITY_DB, TRANSACTIONS_DB, faceapi);
         server.route(routes);
 
     }
