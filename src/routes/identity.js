@@ -76,7 +76,14 @@ module.exports.routes = function routes(IDENTITY_DB, TRANSACTIONS_DB, faceapi) {
 
                     const result = [];
                     for (let i = 0; i < identities.length; i++) {
-                        result.push(new faceapi.LabeledFaceDescriptors(identities[i]._id, new Array(new Float32Array(identities[i].biometrics))));
+                        if(!identities[i].biometrics || identities[i].biometrics.length === 0){
+                            continue
+                        }
+                        try {
+                            result.push(new faceapi.LabeledFaceDescriptors(identities[i]._id, new Array(new Float32Array(identities[i].biometrics))));
+                        }catch(e){
+                            log.error({err: err}, "Failed to process identity ");
+                        }
                     }
                     log.info({count: identities.length}, "Loaded FACEAPI_DB", result.length);
 

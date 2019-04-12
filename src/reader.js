@@ -16,7 +16,10 @@ const WEB3_HOST = process.env.WEB3_HOST || "http://localhost:22000";
 
 let web3 = new Web3(new Web3.providers.HttpProvider(WEB3_HOST));
 
-let abiDefinition = process.env.READER_ABI || fs.readFileSync('./simplestorage_sol_SimpleStorage.abi').toString();
+const SMART_CONTRACT_FILE = process.env.SMART_CONTRACT_FILE || "FlightPass";
+const ACCOUNT_ADDRESS = process.env.ACCOUNT_ADDRESS || "0xecf7e57d01d3d155e5fc33dbc7a58355685ba39c";
+
+let abiDefinition = process.env.READER_ABI || fs.readFileSync(`./psc/${SMART_CONTRACT_FILE}.abi`).toString();
 abiDefinition = JSON.parse(abiDefinition);
 
 let ACTUAL_BLOCK = parseInt(process.env.ACTUAL_BLOCK || "0");
@@ -60,14 +63,30 @@ async function parseBlock(i, b, cb) {
         log.info({"tx": tx.hash}, "Found a private contract, will load receipt");
 
         let receipt = null;
-        try {
-            receipt = await web3.eth.getTransactionReceipt(tx.hash)
-        } catch (err) {
-            log.error({
-                err: err,
-                "tx": tx.hash,
-            }, "Coult not getTransactionReceipt");
-            return parseBlock(i, b, cb);
+        if (!tx.to) {
+
+            try {
+                receipt = await web3.eth.getTransactionReceipt(tx.hash)
+            } catch (err) {
+                log.error({
+                    err: err,
+                    "tx": tx.hash,
+                }, "Coult not getTransactionReceipt");
+                return parseBlock(i, b, cb);
+            }
+
+            if (!receipt) {
+
+                log.error({
+                    err: err,
+                    "tx": tx.hash,
+                }, "Coult not getTransactionReceipt");
+                return parseBlock(i, b, cb);
+            }
+        } else {
+            receipt = {
+                contractAddress: tx.to
+            }
         }
 
         log.info({
@@ -76,36 +95,107 @@ async function parseBlock(i, b, cb) {
         }, "Found a private contract, will load it, ");
         const contract = new web3.eth.Contract(abiDefinition, receipt.contractAddress);
 
-        let val = null;
-        try {
-            val = await contract.methods.get().call()
-        } catch (err) {
-            log.error({
-                err: err,
-                "receipt.contractAddress": receipt.contractAddress,
-                "tx": tx.hash,
-            }, "Could not load this contract, probably not the right one");
-            return parseBlock(i, b, cb);
-        }
-
-
-        log.info({
-            "receipt.contractAddress": receipt.contractAddress,
-            "tx": tx.hash,
-        }, "****** Got a val from private contract, ");
 
         let identity = null;
-        try {
-            identity = JSON.parse(val);
-        } catch (err) {
-            log.error({
-                err: err,
+        log.info({
+            SMART_CONTRACT_FILE: SMART_CONTRACT_FILE,
+            ACCOUNT_ADDRESS: ACCOUNT_ADDRESS
+        }, "Will load smart contract");
+
+        if (SMART_CONTRACT_FILE === "FlightPass") {
+            log.info("Will load FlightPass smart contract steps ");
+
+            let name = null;
+            try {
+                name = await contract.methods.getName().call({from: ACCOUNT_ADDRESS})
+            } catch (err) {
+                log.error({
+                    err: err,
+                    "receipt.contractAddress": receipt.contractAddress,
+                    "tx": tx.hash,
+                }, "Could not load getName at this contract, probably not the right one");
+                return parseBlock(i, b, cb);
+            }
+
+            if (!name) {
+                log.error({
+                    "receipt.contractAddress": receipt.contractAddress,
+                    "tx": tx.hash,
+                }, "Could not load name on this contract, probably not the right one");
+                return parseBlock(i, b, cb);
+            }
+
+            let biometrics = null;
+            try {
+                biometrics = await contract.methods.getVectors().call({from: ACCOUNT_ADDRESS});
+            } catch (err) {
+                log.error({
+                    err: err,
+                    "receipt.contractAddress": receipt.contractAddress,
+                    "tx": tx.hash,
+                }, "Could not load getVectors at this contract, probably not the right one");
+                return parseBlock(i, b, cb);
+            }
+            if (!biometrics) {
+                log.warn({
+                    "receipt.contractAddress": receipt.contractAddress,
+                    "tx": tx.hash,
+                }, "Could not load biometrics on this contract, probably not the right one");
+                // temp fix
+                biometrics = [];
+            } else {
+                try {
+                    biometrics = JSON.parse(biometrics);
+                } catch (err) {
+                    log.error({
+                        err: err,
+                        "receipt.contractAddress": receipt.contractAddress,
+                        "tx": tx.hash,
+                    }, "Could not parse biometrics from getVectors at this contract, probably not the right one");
+                    return parseBlock(i, b, cb);
+                }
+            }
+
+            identity = {
+                name: name,
+                biometrics: biometrics,
+                version: "1",
+            }
+
+        } else {
+
+            let val = null;
+            try {
+                val = await contract.methods.get().call()
+            } catch (err) {
+                log.error({
+                    err: err,
+                    "receipt.contractAddress": receipt.contractAddress,
+                    "tx": tx.hash,
+                }, "Could not load this contract, probably not the right one");
+                return parseBlock(i, b, cb);
+            }
+
+
+            log.info({
                 "receipt.contractAddress": receipt.contractAddress,
                 "tx": tx.hash,
-            }, "Could not parse JSON inside this psc, ");
-            return parseBlock(i, b, cb);
+            }, "****** Got a val from private contract, ");
+
+            try {
+                identity = JSON.parse(val);
+            } catch (err) {
+                log.error({
+                    err: err,
+                    "receipt.contractAddress": receipt.contractAddress,
+                    "tx": tx.hash,
+                }, "Could not parse JSON inside this psc, ");
+                return parseBlock(i, b, cb);
+            }
         }
-        if(!identity){
+
+
+        if (!identity) {
             return parseBlock(i, b, cb);
         }
 
