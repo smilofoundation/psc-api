@@ -1,35 +1,39 @@
 pragma solidity ^0.4.25;
-
-library Library {
-  struct data {
-     string name;
-     bool isValue;
-   }
-}
+pragma experimental ABIEncoderV2;
 
 contract FlightPass {
-    using Library for Library.data;
-    string private contractName = "FlightPass";
-    uint private revision;
+    string private _contractName = "FlightPass";
+    string private _ticket;
+    string private _flight;
+    string private _passport;
     string private _name;
-    bytes private vectors;
+    bytes private _vectors;
     address private _owner;
-    mapping(address => Library.data) private trusted;
-    
+    mapping(address => trusted) private _trusted;
+
+    struct trusted {
+        address trustedAddress;
+        string name;
+        bool isValue;
+    }
+
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-    
+
     /**
      * Constructor parameters:
      *      string name
      *      address owner
      * Set owner to address owner
      */
-    constructor(string memory name, address owner) public {
+    constructor(string memory name, address owner, string memory ticket, string memory flight, string memory passport) public {
         _name = name;
         _owner = owner;
+        _ticket = ticket;
+        _flight = flight;
+        _passport = passport;
         emit OwnershipTransferred(address(0), _owner);
     }
-    
+
     /**
      * Get a name
      * onlyTrusted
@@ -38,25 +42,24 @@ contract FlightPass {
     function getName() public onlyTrusted view returns (string memory) {
         return _name;
     }
-    
+
     /**
      * Set the biometrics
      * onlyOwner
      */
-    function setVectors(string _vectors) public onlyOwner {
-        vectors = stringToBytesArray(_vectors);
+    function setVectors(string vectors) public onlyOwner {
+        _vectors = stringToBytesArray(vectors);
     }
-    
+
     /**
      * Share the biometrics
      * only trusted people + owner
      * @return vectors as a string
      */
-    function getVectors() public payable returns (string) {
-        require(isTrusted());
-        return bytesArrayToString(vectors);
+    function getVectors() public onlyTrusted view returns (string) {
+        return bytesArrayToString(_vectors);
     }
-    
+
     /**
      * Change ownership of contract.
      */
@@ -64,46 +67,72 @@ contract FlightPass {
         _transferOwnership(newOwner);
         return _owner;
     }
-    
+
     /**
-     * @return the address of the owner.
+     * only trusted people + owner
+     * @return the flight of the owner.
      */
+    function getFlight() public onlyTrusted view returns (string) {
+        return _flight;
+    }
+
+    /**
+     * only trusted people + owner
+     * @return the passport of the owner.
+     */
+    function getPassPort() public onlyTrusted view returns (string) {
+        return _passport;
+    }
+
+    /**
+    * only trusted people + owner
+    * @return the ticket of the owner.
+    */
+    function getTicket() public onlyTrusted view returns (string) {
+        return _ticket;
+    }
+
+    /**
+    * @return the address of the owner.
+    */
     function getOwner() public onlyOwner view returns (address) {
         return _owner;
     }
-    
+
     /**
      * Add address to trusted list
      * @return true if success
      */
-    function addTrusted(address trustedAddress, string memory name) public onlyOwner returns (bool) {
-        trusted[trustedAddress].name = name;
-        trusted[trustedAddress].isValue = true;
-        return true;
+    function addTrusted(trusted[] memory trustedlist) public onlyOwner {
+        for (uint i=0; i < trustedlist.length; i++) {
+            var obj = trustedlist[i];
+            _trusted[obj.trustedAddress].trustedAddress = obj.trustedAddress;
+            _trusted[obj.trustedAddress].name = obj.name;
+            _trusted[obj.trustedAddress].isValue = obj.isValue;
+        }
     }
-    
+
     /**
      * Set address trustee to false
-     * Todo: clean up untrusted addresses
      * @return true if success
      */
     function delTrusted(address trustedAddress) public onlyOwner returns (bool) {
-        trusted[trustedAddress].isValue = false;
+        _trusted[trustedAddress].isValue = false;
         return true;
     }
-  
+
     /**
      * @return true if `msg.sender` is the owner of the contract.
      */
     function isOwner() private view returns (bool) {
         return msg.sender == _owner;
     }
-  
+
     /**
      * @return true if `address` is a trustee of the contract.
      */
     function isTrusted() private view returns (bool) {
-        if(trusted[msg.sender].isValue || isOwner()) return true;
+        if(_trusted[msg.sender].isValue || isOwner()) return true;
         return false;
     }
 
@@ -114,7 +143,7 @@ contract FlightPass {
         require(isOwner());
         _;
     }
-    
+
     /**
      * @dev Throws if called by any account other than the owner.
      */
@@ -122,7 +151,7 @@ contract FlightPass {
         require(isTrusted());
         _;
     }
-    
+
     /**
      * Convert bytes to string 
      */

@@ -238,17 +238,11 @@ module.exports.routes = function routes(IDENTITY_DB, TRANSACTIONS_DB, faceapi) {
 
         {
             method: 'DELETE',
-            path: '/transactions',
+            path: '/transactions/{contractAddress}',
             config: {
-                validate: {
-                    payload: Joi.object().keys({
-                        contractAddress: Joi.string().default(demodata.contractAddress).required()
-                    }),
-                },
                 handler: async function (request, h) {
 
-                    const payload = request.payload;
-                    const contractAddress = payload.contractAddress;
+                    const contractAddress = encodeURIComponent(request.params.contractAddress);
                     if (!contractAddress) {
                         const err = "Failed to get contractAddress from payload";
                         log.error({err: err});
