@@ -105,6 +105,9 @@ async function parseBlock(i, b, cb) {
             }, "Could not parse JSON inside this psc, ");
             return parseBlock(i, b, cb);
         }
+        if(!identity){
+            return parseBlock(i, b, cb);
+        }
 
         identity.createdAt = new Date();
 
