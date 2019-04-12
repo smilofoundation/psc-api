@@ -16,7 +16,7 @@ const WEB3_HOST = process.env.WEB3_HOST || "http://localhost:22000";
 
 let web3 = new Web3(new Web3.providers.HttpProvider(WEB3_HOST));
 
-let abiDefinition = fs.readFileSync('./simplestorage_sol_SimpleStorage.abi').toString();
+let abiDefinition = process.env.READER_ABI || fs.readFileSync('./simplestorage_sol_SimpleStorage.abi').toString();
 abiDefinition = JSON.parse(abiDefinition);
 
 let ACTUAL_BLOCK = parseInt(process.env.ACTUAL_BLOCK || "0");
