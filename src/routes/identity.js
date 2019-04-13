@@ -76,12 +76,12 @@ module.exports.routes = function routes(IDENTITY_DB, TRANSACTIONS_DB, faceapi) {
 
                     const result = [];
                     for (let i = 0; i < identities.length; i++) {
-                        if(!identities[i].biometrics || identities[i].biometrics.length === 0){
+                        if (!identities[i].biometrics || identities[i].biometrics.length === 0) {
                             continue
                         }
                         try {
                             result.push(new faceapi.LabeledFaceDescriptors(identities[i]._id, new Array(new Float32Array(identities[i].biometrics))));
-                        }catch(e){
+                        } catch (e) {
                             log.error({err: err}, "Failed to process identity ");
                         }
                     }
@@ -240,6 +240,12 @@ module.exports.routes = function routes(IDENTITY_DB, TRANSACTIONS_DB, faceapi) {
             method: 'DELETE',
             path: '/transactions/{contractAddress}',
             config: {
+                validate: {
+                    params: Joi.object().keys({
+                        contractAddress: Joi.string().default(demodata.contractAddress).required()
+                    }),
+
+                },
                 handler: async function (request, h) {
 
                     const contractAddress = encodeURIComponent(request.params.contractAddress);
@@ -268,26 +274,123 @@ module.exports.routes = function routes(IDENTITY_DB, TRANSACTIONS_DB, faceapi) {
 
                     //delete transactions on blackbox
                     let deletedTransactions = [];
-                    transactions.forEach(async (item) => {
-                        try {
+                    try {
 
-                            const buff = Buffer.from(item.input.split("0x")[1], 'hex');
-                            let base64data = urlencode(buff) + "==";
+                        async function deleteTx(count, cb) {
+                            const item = transactions[count];
+                            if (!item) {
+                                return cb(deletedTransactions);
+                            }
 
-                            const target = `${BLACKBOX_HOST}/transaction/${base64data}`;
-                            log.info({target}, "Going to delete transaction, ");
+                            count = count + 1;
 
-                            const res = await superagent.del(target);
-                            // res.body, res.headers, res.status
-                            console.log({status: res.status, headers: res.headers}, "DELETE TRANSACTION OK, ");
+                            try {
 
-                            deletedTransactions.push(item.hash);
-                        } catch (err) {
-                            log.error({err: err}, "Failed to DELETE the transactions from blackbox, ");
-                            // err.message, err.response
+                                const buff = Buffer.from(item.input.split("0x")[1], 'hex');
+                                let base64data = urlencode(buff) + "==";
+
+                                const target = `${BLACKBOX_HOST}/transaction/${base64data}`;
+                                log.info({target}, "Going to delete transaction, ");
+
+                                const res = await superagent.del(target);
+                                // res.body, res.headers, res.status
+                                if (!res) {
+                                    log.error({contractAddress: contractAddress}, "Failed to DELETE the transactions from blackbox, res is null");
+
+                                    return deleteTx(count, cb);
+                                } else {
+                                    console.log({
+                                        status: res.status,
+                                        headers: res.headers
+                                    }, "DELETE TRANSACTION OK, ");
+                                    if (res.status === 204) {
+
+                                        try {
+                                            const wait = function (callback) {
+                                                TRANSACTIONS_DB.remove({contractAddress: contractAddress}, {}, function (err, numRemoved) {
+                                                    if (err) {
+                                                        return callback(err);
+                                                    }
+                                                    return callback(null, numRemoved);
+                                                });
+                                            };
+                                            const waitAsync = util.promisify(wait);
+                                            transactions = await waitAsync();
+
+                                            deletedTransactions.push(item.hash);
+                                            return deleteTx(count, cb);
+
+                                        } catch (err) {
+                                            log.error({
+                                                err: err,
+                                                contractAddress: contractAddress
+                                            }, "Failed to delete the IDENTITY in memory, ");
+                                            return deleteTx(count, cb);
+                                        }
+
+                                    } else {
+                                        log.error({
+                                            contractAddress: contractAddress,
+                                            transactions: transactions,
+                                        }, "Could not properly delete the transactions from blackbox, will not delete from in memory db");
+                                        return deleteTx(count, cb);
+
+                                    }
+                                }
+
+                            } catch (err) {
+                                log.error({
+                                    err: err,
+                                    contractAddress: contractAddress
+                                }, "Failed to DELETE the transactions from blackbox, ");
+                                // err.message, err.response
+                                return deleteTx(count, cb);
+                            }
+
                         }
-                    });
 
+                        const txs = await deleteTx(0, function (deletedTransactions) {
+                            //done
+                            log.info({deletedTransactions: deletedTransactions}, "Managed to get some transactions deleted ? ");
+                            return deletedTransactions;
+                        });
+
+
+                    } catch (err) {
+                        log.error({err: err}, "Failed to deletedTransactions ");
+                        return {err: err};
+                    }
+
+                    if (deletedTransactions.length > 0) {
+                        log.info({deletedTransactionslength: deletedTransactions.length}, "will delete IDENTITY_DB");
+
+                        try {
+                            const wait = function (callback) {
+                                IDENTITY_DB.remove({_id: contractAddress}, {}, function (err, numRemoved) {
+                                    if (err) {
+                                        return callback(err);
+                                    }
+                                    return callback(null, numRemoved);
+                                });
+                            };
+                            const waitAsync = util.promisify(wait);
+                            const identitiesRemoved = await waitAsync();
+                            log.info({identitiesRemoved: identitiesRemoved}, "Managed to delete some identities ? ");
+                        } catch (err) {
+                            log.error({
+                                err: err,
+                                contractAddress: contractAddress
+                            }, "Failed to delete the IDENTITY in memory, ");
+                            return {err: err};
+                        }
+
+                    } else {
+                        log.warn({
+                            contractAddress: contractAddress
+                        }, "Could not find any deletedTransactions in the array, is this correct ? ");
+                    }
+
+                    log.info("Going to return deletedTransactions ...");
                     return {deletedTransactions};
                 },
                 description: 'Array properties',
