@@ -1,5 +1,4 @@
 const Hapi = require('hapi');
-const corsHeaders = require('hapi-cors-headers');
 const Inert = require('inert');
 const Vision = require('vision');
 const HapiSwagger = require('hapi-swagger');
@@ -16,9 +15,10 @@ const log = bunyan.createLogger({name: "server"});
 (async () => {
     const server = await new Hapi.Server({
         port: PORT,
+        routes: {
+            cors: true
+        }
     });
-
-    server.ext('onPreResponse', corsHeaders);
 
     const swaggerOptions = {
         basePath: '/',
