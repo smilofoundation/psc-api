@@ -1,6 +1,7 @@
 pragma solidity ^0.4.25;
 pragma experimental ABIEncoderV2;
 
+
 contract FlightPass {
     string private _contractName = "FlightPass";
     string private _ticket;
@@ -11,7 +12,7 @@ contract FlightPass {
     address private _owner;
     mapping(address => trusted) private _trusted;
 
-    struct trusted {
+    struct Trusted {
         address trustedAddress;
         string name;
         bool isValue;
@@ -25,7 +26,8 @@ contract FlightPass {
      *      address owner
      * Set owner to address owner
      */
-    constructor(string memory name, address owner, string memory ticket, string memory flight, string memory passport) public {
+    constructor(string memory name, address owner, string memory ticket, string memory flight, string memory passport)
+    public {
         _name = name;
         _owner = owner;
         _ticket = ticket;
@@ -113,7 +115,7 @@ contract FlightPass {
     }
 
     function isTrustedAddress(address trustedAddress) public onlyOwner view returns (bool) {
-        if(_trusted[trustedAddress].isValue) return true;
+        if (_trusted[trustedAddress].isValue) return true;
         return false;
     }
 
@@ -138,14 +140,38 @@ contract FlightPass {
      * @return true if `address` is a trustee of the contract.
      */
     function isTrusted() private view returns (bool) {
-        if(_trusted[msg.sender].isValue || isOwner()) return true;
+        if (_trusted[msg.sender].isValue || isOwner()) return true;
         return false;
+    }
+
+    /**
+     * Convert bytes to string
+     */
+    function bytesArrayToString (bytes memory _bytes) private pure returns (string) {
+        return string(_bytes);
+    }
+
+    /**
+     * Convert string to bytes
+     */
+    function stringToBytesArray(string memory str) private pure returns (bytes) {
+        return bytes(str);
+    }
+
+    /**
+    * @dev Transfers control of the contract to a newOwner.
+    * @param newOwner The address to transfer ownership to.
+    */
+    function _transferOwnership(address newOwner) internal {
+        require(newOwner != address(0));
+        emit OwnershipTransferred(_owner, newOwner);
+        _owner = newOwner;
     }
 
     /**
      * @dev Throws if called by any account other than the owner.
      */
-    modifier onlyOwner() {
+    modifier onlyOwner()  {
         require(isOwner());
         _;
     }
@@ -156,29 +182,5 @@ contract FlightPass {
     modifier onlyTrusted() {
         require(isTrusted());
         _;
-    }
-
-    /**
-     * Convert bytes to string 
-     */
-    function bytesArrayToString(bytes memory _bytes) private pure returns (string) {
-        return string(_bytes);
-    }
-
-    /**
-     * Convert string to bytes 
-     */
-    function stringToBytesArray(string memory str) private pure returns (bytes){
-        return bytes(str);
-    }
-
-    /**
-     * @dev Transfers control of the contract to a newOwner.
-     * @param newOwner The address to transfer ownership to.
-     */
-    function _transferOwnership(address newOwner) internal {
-        require(newOwner != address(0));
-        emit OwnershipTransferred(_owner, newOwner);
-        _owner = newOwner;
     }
 }

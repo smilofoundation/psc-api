@@ -3,6 +3,7 @@ const Inert = require('inert');
 const Vision = require('vision');
 const HapiSwagger = require('hapi-swagger');
 const Pack = require('./package');
+const cors = require('./src/routes/cors');
 
 const reader = require("./src/reader");
 const bunyan = require('bunyan');
@@ -19,6 +20,8 @@ const log = bunyan.createLogger({name: "server"});
             cors: true
         }
     });
+
+    server.ext('onPreResponse', cors.addCORS);
 
     const swaggerOptions = {
         basePath: '/',
